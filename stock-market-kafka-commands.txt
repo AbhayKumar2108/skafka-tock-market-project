@@ -1,0 +1,98 @@
+wget https://archive.apache.org/dist/kafka/3.3.1/kafka_2.12-3.3.1.tgz
+tar -xvf kafka_2.12-3.3.1.tgz
+
+
+-----------------------
+java -version
+sudo yum install java-1.8.0-openjdk
+----------------X  if sudo yum for java installation doesn't work then       X----------------X---------------------X------------X
+
+download the java .tar.gz file in local and move it to ec2 insatnce using scp command if scp doesn't work then use WinScp app to do so and move it to desired directory in ec2(sudo mkdir -p /usr/java/, sudo mv jdk-8u381-linux-x64.tar.gz /usr/java/)
+--- eg ----
+ [ec2-user@ip-172-31-40-189 ~]$ ls /usr/java
+jdk-8u381-linux-x64.tar.gz
+
+then extract the java archive using :
+[ec2-user@ip-172-31-40-189 ~]$ cd /usr/java
+[ec2-user@ip-172-31-40-189 java]$ sudo tar -zxvf jdk-8u381-linux-x64.tar.gz
+--- -------
+Set Environment Variables:
+
+Edit your .bashrc file to set the JAVA_HOME and update the PATH environment variables:
+
+nano ~/.bashrc
+Add the following lines to the end of the file:
+
+export JAVA_HOME=/usr/java/jdk1.8.0_381
+export PATH=$PATH:$JAVA_HOME/bin
+Save and exit the text editor (usually, press Ctrl + O, Enter, and Ctrl + X).
+
+To apply the changes to your current session, either log out and log back in, or run the following command:
+
+source ~/.bashrc
+
+After successful installation :
+[ec2-user@ip-172-31-40-189 java]$ java -version
+java version "1.8.0_381"
+Java(TM) SE Runtime Environment (build 1.8.0_381-b09)
+Java HotSpot(TM) 64-Bit Server VM (build 25.381-b09, mixed mode)
+
+------------X-------------------X----------------------------------X-----------------X------------------------X----------------
+
+cd kafka_2.12-3.3.1
+
+Start Zoo-keeper:
+-------------------------------
+bin/zookeeper-server-start.sh config/zookeeper.properties
+
+Open another window to start kafka
+But first ssh to to your ec2 machine as done above
+
+
+Start Kafka-server:
+----------------------------------------
+Duplicate the session & enter in a new console --
+export KAFKA_HEAP_OPTS="-Xmx256M -Xms128M"
+cd kafka_2.12-3.3.1
+bin/kafka-server-start.sh config/server.properties
+
+In the kafka you'll find (PLAINTEXT://ip-172-31-35-205.a.-south-1.compute.internal:9092) which is the private ip DNS of the ec2 machine and you can't access private DNS from your local computer unlesss you are in the same network. We need to chnage this IP to public IP  sot that we can accsess EC2 machine outside of the network.
+
+Stop both zookeper and kafka by pressing ctrl+C or ctrl+Z and edit config/server.properties file.  
+To do this , you can follow any of the 2 approaches shared below --
+Do a "sudo nano config/server.properties" - change ADVERTISED_LISTENERS to public ip of the EC2 instance and save the file then again start the zookeeper and kafka-server.
+We also need to provide access to Ec2 machine from our local frot this (EC2 -> instances -> instance console -> Security -> Security Groups -> Edit inbound rules : in type (All traffic) and in Source (My IP) -> Save Rules
+
+This change is for learning purpose only and is not secure.This part is handled by devOps/clod engineer.
+
+We edited the inblund rules to EC2 so that we can access kafka-server from local through jupyter notebook(python).
+
+Create topic and start producer and consumer. 
+
+Create the topic:
+----------------------------
+-----------------------------
+Duplicate the session & enter in a new console --
+cd kafka_2.12-3.3.1
+----
+bin/kafka-topics.sh --create --topic demo_test --bootstrap-server 51.20.6.17:9092 --replication-factor 1 --partitions 1
+-----
+bin/kafka-topics.sh --create --topic demo_test --bootstrap-server 51.20.6.17:9092 --replication-factor 1 --partitions 1
+Start Producer:
+--------------------------
+bin/kafka-console-producer.sh --topic demo_test --bootstrap-server 51.20.6.17:9092 
+
+Start Consumer:
+-------------------------
+Duplicate the session & enter in a new console --
+cd kafka_2.12-3.3.1
+bin/kafka-console-consumer.sh --topic demo_test --bootstrap-server 51.20.6.17:9092
+
+At this point, there are four CLIs opened and running. One for zookeeper, one for kafka, one for producer and one for consumer. Write anythong in producer console and see it getting printed in consumer console instantly. Sending data from producer to consumer through the kafka server. We are typing/giving the input/meggage to the producer manually by typing but we can use python to do so programmatically.
+
+We set up kafka server on EC2 machine and create a producer and consumer.
+We'll now use python to push stock market data in real-time, consumer it and upload it to Amazon S3.
+
+open jupyter notebook(one for producer and one for consumer) in the folder having the pem key downloaded (in local). write producerand consumer code. Whatever passed in producer is received in consumer side of python code in the jupyter.
+
+Since we don't have stock market real-time API which is paid we'll simulate that data from an existing stock market data. We'll do some sampling and send it one by one to our kafka producer that'll producer that will produce the data and put it to kafka server 
